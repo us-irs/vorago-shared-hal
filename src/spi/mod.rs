@@ -860,21 +860,28 @@ where
         self.transfer_preparation(write)?;
         let mut current_read_idx = 0;
         let mut current_write_idx = self.initial_send_fifo_pumping_with_words(write);
+        let max_idx = core::cmp::max(read.len(), write.len());
         while current_read_idx < read.len() || current_write_idx < write.len() {
-            if current_write_idx < write.len() {
+            if current_write_idx < max_idx {
                 if current_write_idx == write.len() - 1 && self.bmstall {
                     nb::block!(
                         self.write_fifo(write[current_write_idx].into() | BMSTART_BMSTOP_MASK)
                     )?;
-                } else {
+                } else if current_write_idx < write.len() {
                     nb::block!(self.write_fifo(write[current_write_idx].into()))?;
+                } else {
+                    nb::block!(self.write_fifo(0))?;
                 }
                 current_write_idx += 1;
             }
-            if current_read_idx < read.len() {
-                read[current_read_idx] = (nb::block!(self.read_fifo())? & Word::MASK)
-                    .try_into()
-                    .unwrap();
+            if current_read_idx < max_idx {
+                if current_read_idx < read.len() {
+                    read[current_read_idx] = (nb::block!(self.read_fifo())? & Word::MASK)
+                        .try_into()
+                        .unwrap();
+                } else {
+                    nb::block!(self.read_fifo()).unwrap();
+                }
                 current_read_idx += 1;
             }
         }

@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [unreleased]
 
+### Changed
+
+- SPI `transfer` implemenation update to handle size missmatch between read and write.
+
 ## [v0.1.0]
 
 Init commit.
