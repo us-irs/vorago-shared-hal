@@ -631,7 +631,7 @@ pub struct I2c {
 
     _reserved_0: [u32; 0x2D],
 
-    #[mmio(inner)]
+    #[mmio(Inner)]
     slave: slave::I2cSlave,
 
     #[cfg(feature = "vor1x")]
