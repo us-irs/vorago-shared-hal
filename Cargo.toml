@@ -37,7 +37,7 @@ embassy-time-queue-utils = "0.1"
 once_cell = { version = "1", default-features = false, features = ["critical-section"] }
 
 [features]
-vor1x = ["_family-selected", "dep:va108xx"]
+vor1x = ["_family-selected", "dep:va108xx", "portable-atomic/unsafe-assume-single-core"]
 vor4x = ["_family-selected", "dep:va416xx"]
 va41628 = []
 defmt = ["dep:defmt", "arbitrary-int/defmt", "fugit/defmt", "embedded-hal/defmt-03"]
