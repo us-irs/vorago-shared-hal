@@ -42,7 +42,7 @@ portable-atomic = "1"
 portable-atomic = "1"
 
 [features]
-vor1x = ["_family-selected", "dep:va108xx", "portable-atomic/unsafe-assume-single-core"]
+vor1x = ["_family-selected", "dep:va108xx"]
 vor4x = ["_family-selected", "dep:va416xx"]
 va41628 = []
 defmt = ["dep:defmt", "arbitrary-int/defmt", "fugit/defmt", "embedded-hal/defmt-03"]
