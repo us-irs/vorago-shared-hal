@@ -10,8 +10,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "thumbv7em-none-eabihf, thumbv6m-none-eabi"
-      - run: cargo check --target thumbv7em-none-eabihf
-      - run: cargo check --target thumbv6m-none-eabi
+      - run: cargo check --target thumbv7em-none-eabihf --features vor4x
+      - run: cargo check --target thumbv6m-none-eabi --features vor1x
 
   fmt:
     name: Check formatting
@@ -27,8 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv6m-none-eabi --features vor1x
+        with:
+          targets: "thumbv7em-none-eabihf, thumbv6m-none-eabi"
       - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv7em-none-eabihf --features vor4x
+      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv6m-none-eabi --features vor1x
 
   clippy:
     name: Clippy
@@ -38,5 +40,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "thumbv7em-none-eabihf, thumbv6m-none-eabi"
-      - run: cargo clippy --target thumbv7em-none-eabihf -- -D warnings
-      - run: cargo clippy --target thumbv6m-none-eabi -- -D warnings
+      - run: cargo clippy --target thumbv7em-none-eabihf --features vor4x -- -D warnings
+      - run: cargo clippy --target thumbv6m-none-eabi --features vor1x -- -D warnings
