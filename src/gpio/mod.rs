@@ -1,7 +1,7 @@
 //! GPIO support module.
 use core::convert::Infallible;
 
-pub use crate::ioconfig::{regs::FunSel, FilterClkSel, FilterType};
+pub use crate::ioconfig::{FilterClkSel, FilterType, regs::FunSel};
 pub use embedded_hal::digital::PinState;
 pub use ll::{InterruptEdge, InterruptLevel, PinId, Port, Pull};
 
