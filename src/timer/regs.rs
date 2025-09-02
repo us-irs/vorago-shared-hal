@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use arbitrary_int::{Number, u7};
+use arbitrary_int::{prelude::*, u7};
 
 #[cfg(feature = "vor1x")]
 const BASE_ADDR: usize = 0x4002_0000;

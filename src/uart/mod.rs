@@ -17,7 +17,7 @@ pub mod regs;
 #[cfg(feature = "vor1x")]
 use crate::InterruptConfig;
 use crate::{FunSel, gpio::IoPeriphPin, pins::PinMarker, sealed::Sealed};
-use arbitrary_int::{Number, u6, u18};
+use arbitrary_int::{prelude::*, u6, u18};
 use fugit::RateExtU32;
 use regs::{ClkScale, Control, Data, Enable, FifoClear, InterruptClear, MmioUart};
 
