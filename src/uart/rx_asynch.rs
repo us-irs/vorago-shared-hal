@@ -16,7 +16,7 @@
 //! structure returned by the interrupt handlers.
 use core::{cell::RefCell, convert::Infallible, future::Future, sync::atomic::Ordering};
 
-use arbitrary_int::Number;
+use arbitrary_int::prelude::*;
 use critical_section::Mutex;
 use embassy_sync::waitqueue::AtomicWaker;
 use embedded_io::ErrorType;
@@ -120,18 +120,18 @@ fn on_interrupt_rx_common_post_processing(
 /// Should be called in the user interrupt handler to enable
 /// asynchronous reception. This variant will overwrite old data in the ring buffer in case
 /// the ring buffer is full.
-pub fn on_interrupt_rx_overwriting<const N: usize>(
+pub fn on_interrupt_rx_overwriting(
     bank: Bank,
-    prod: &mut heapless::spsc::Producer<u8, N>,
-    shared_consumer: &Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8, N>>>>,
+    prod: &mut heapless::spsc::Producer<u8>,
+    shared_consumer: &Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8>>>>,
 ) -> Result<(), AsyncUartErrors> {
     on_interrupt_rx_async_heapless_queue_overwriting(bank, prod, shared_consumer)
 }
 
-pub fn on_interrupt_rx_async_heapless_queue_overwriting<const N: usize>(
+pub fn on_interrupt_rx_async_heapless_queue_overwriting(
     bank: Bank,
-    prod: &mut heapless::spsc::Producer<u8, N>,
-    shared_consumer: &Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8, N>>>>,
+    prod: &mut heapless::spsc::Producer<u8>,
+    shared_consumer: &Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8>>>>,
 ) -> Result<(), AsyncUartErrors> {
     let uart_regs = unsafe { bank.steal_regs() };
     let irq_status = uart_regs.read_irq_status();
@@ -190,16 +190,16 @@ pub fn on_interrupt_rx_async_heapless_queue_overwriting<const N: usize>(
 /// Interrupt handler for asynchronous RX operations.
 ///
 /// Should be called in the user interrupt handler to enable asynchronous reception.
-pub fn on_interrupt_rx<const N: usize>(
+pub fn on_interrupt_rx(
     bank: Bank,
-    prod: &mut heapless::spsc::Producer<'_, u8, N>,
+    prod: &mut heapless::spsc::Producer<'_, u8>,
 ) -> Result<(), AsyncUartErrors> {
     on_interrupt_rx_async_heapless_queue(bank, prod)
 }
 
-pub fn on_interrupt_rx_async_heapless_queue<const N: usize>(
+pub fn on_interrupt_rx_async_heapless_queue(
     bank: Bank,
-    prod: &mut heapless::spsc::Producer<'_, u8, N>,
+    prod: &mut heapless::spsc::Producer<'_, u8>,
 ) -> Result<(), AsyncUartErrors> {
     let uart_regs = unsafe { bank.steal_regs() };
     let irq_status = uart_regs.read_irq_status();
@@ -255,17 +255,17 @@ impl Drop for ActiveReadGuard {
     }
 }
 
-struct RxAsyncInner<const N: usize> {
+struct RxAsyncInner {
     rx: Rx,
-    pub queue: heapless::spsc::Consumer<'static, u8, N>,
+    pub queue: heapless::spsc::Consumer<'static, u8>,
 }
 
 /// Core data structure to allow asynchronous UART reception.
 ///
 /// If the ring buffer becomes full, data will be lost.
-pub struct RxAsync<const N: usize>(Option<RxAsyncInner<N>>);
+pub struct RxAsync(Option<RxAsyncInner>);
 
-impl<const N: usize> ErrorType for RxAsync<N> {
+impl ErrorType for RxAsync {
     /// Error reporting is done using the result of the interrupt functions.
     type Error = Infallible;
 }
@@ -276,12 +276,12 @@ fn stop_async_rx(rx: &mut Rx) {
     rx.clear_fifo();
 }
 
-impl<const N: usize> RxAsync<N> {
+impl RxAsync {
     /// Create a new asynchronous receiver.
     ///
     /// The passed [heapless::spsc::Consumer] will be used to asynchronously receive data which
     /// is filled by the interrupt handler [on_interrupt_rx].
-    pub fn new(mut rx: Rx, queue: heapless::spsc::Consumer<'static, u8, N>) -> Self {
+    pub fn new(mut rx: Rx, queue: heapless::spsc::Consumer<'static, u8>) -> Self {
         rx.disable_interrupts();
         rx.disable();
         rx.clear_fifo();
@@ -300,29 +300,29 @@ impl<const N: usize> RxAsync<N> {
         stop_async_rx(&mut self.0.as_mut().unwrap().rx);
     }
 
-    pub fn release(mut self) -> (Rx, heapless::spsc::Consumer<'static, u8, N>) {
+    pub fn release(mut self) -> (Rx, heapless::spsc::Consumer<'static, u8>) {
         self.stop();
         let inner = self.0.take().unwrap();
         (inner.rx, inner.queue)
     }
 }
 
-impl<const N: usize> Drop for RxAsync<N> {
+impl Drop for RxAsync {
     fn drop(&mut self) {
         self.stop();
     }
 }
 
-impl<const N: usize> embedded_io_async::Read for RxAsync<N> {
+impl embedded_io_async::Read for RxAsync {
     async fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let inner = self.0.as_ref().unwrap();
         // Need to wait for the IRQ to read data and set this flag. If the queue is not
         // empty, we can read data immediately.
-        if inner.queue.len() == 0 {
+        if inner.queue.is_empty() {
             RX_HAS_DATA[inner.rx.id as usize].store(false, Ordering::Relaxed);
         }
         let _guard = ActiveReadGuard(inner.rx.id as usize);
-        let mut handle_data_in_queue = |consumer: &mut heapless::spsc::Consumer<'static, u8, N>| {
+        let mut handle_data_in_queue = |consumer: &mut heapless::spsc::Consumer<'static, u8>| {
             let data_to_read = consumer.len().min(buf.len());
             for byte in buf.iter_mut().take(data_to_read) {
                 // We own the consumer and we checked that the amount of data is guaranteed to be available.
@@ -343,23 +343,23 @@ impl<const N: usize> embedded_io_async::Read for RxAsync<N> {
     }
 }
 
-struct RxAsyncOverwritingInner<const N: usize> {
+struct RxAsyncOverwritingInner {
     rx: Rx,
-    pub shared_consumer: &'static Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8, N>>>>,
+    pub shared_consumer: &'static Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8>>>>,
 }
 
 /// Core data structure to allow asynchronous UART reception.
 ///
 /// If the ring buffer becomes full, the oldest data will be overwritten when using the
 /// [on_interrupt_rx_overwriting] interrupt handlers.
-pub struct RxAsyncOverwriting<const N: usize>(Option<RxAsyncOverwritingInner<N>>);
+pub struct RxAsyncOverwriting(Option<RxAsyncOverwritingInner>);
 
-impl<const N: usize> ErrorType for RxAsyncOverwriting<N> {
+impl ErrorType for RxAsyncOverwriting {
     /// Error reporting is done using the result of the interrupt functions.
     type Error = Infallible;
 }
 
-impl<const N: usize> RxAsyncOverwriting<N> {
+impl RxAsyncOverwriting {
     /// Create a new asynchronous receiver.
     ///
     /// The passed shared [heapless::spsc::Consumer] will be used to asynchronously receive data
@@ -367,7 +367,7 @@ impl<const N: usize> RxAsyncOverwriting<N> {
     /// interrupt handler to overwrite old data.
     pub fn new(
         mut rx: Rx,
-        shared_consumer: &'static Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8, N>>>>,
+        shared_consumer: &'static Mutex<RefCell<Option<heapless::spsc::Consumer<'static, u8>>>>,
     ) -> Self {
         rx.disable_interrupts();
         rx.disable();
@@ -397,13 +397,13 @@ impl<const N: usize> RxAsyncOverwriting<N> {
     }
 }
 
-impl<const N: usize> Drop for RxAsyncOverwriting<N> {
+impl Drop for RxAsyncOverwriting {
     fn drop(&mut self) {
         self.stop();
     }
 }
 
-impl<const N: usize> embedded_io_async::Read for RxAsyncOverwriting<N> {
+impl embedded_io_async::Read for RxAsyncOverwriting {
     async fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let inner = self.0.as_ref().unwrap();
         let id = inner.rx.id as usize;
@@ -412,12 +412,12 @@ impl<const N: usize> embedded_io_async::Read for RxAsyncOverwriting<N> {
 
         critical_section::with(|cs| {
             let queue = inner.shared_consumer.borrow(cs);
-            if queue.borrow().as_ref().unwrap().len() == 0 {
+            if queue.borrow().as_ref().unwrap().is_empty() {
                 RX_HAS_DATA[id].store(false, Ordering::Relaxed);
             }
         });
         let _guard = ActiveReadGuard(id);
-        let mut handle_data_in_queue = |inner: &mut RxAsyncOverwritingInner<N>| {
+        let mut handle_data_in_queue = |inner: &mut RxAsyncOverwritingInner| {
             critical_section::with(|cs| {
                 let mut consumer_ref = inner.shared_consumer.borrow(cs).borrow_mut();
                 let consumer = consumer_ref.as_mut().unwrap();
