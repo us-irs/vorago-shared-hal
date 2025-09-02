@@ -10,6 +10,8 @@ pub const BASE_ADDR: usize = 0x4000_2000;
 pub const BASE_ADDR: usize = 0x4001_1000;
 
 #[bitbybit::bitenum(u3)]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FilterType {
     SysClk = 0,
     DirectInput = 1,
@@ -51,7 +53,7 @@ pub enum FunSel {
     Sel3 = 0b11,
 }
 
-#[bitbybit::bitfield(u32)]
+#[bitbybit::bitfield(u32, debug, defmt_fields(feature = "defmt"))]
 pub struct Config {
     #[bit(16, rw)]
     io_disable: bool,

@@ -56,8 +56,7 @@ impl Bank {
     }
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Data {
     #[bit(15, rw)]
     dparity: bool,
@@ -65,8 +64,7 @@ pub struct Data {
     value: u8,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Enable {
     #[bit(1, rw)]
     tx: bool,
@@ -92,8 +90,7 @@ pub enum WordSize {
     Eight = 0b11,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_fields(feature = "defmt"))]
 pub struct Control {
     #[bit(11, rw)]
     baud8: bool,
@@ -119,8 +116,7 @@ pub struct Control {
     parity_enable: bool,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_bitfields(feature = "defmt"))]
 pub struct ClkScale {
     #[bits(6..=23, rw)]
     int: u18,
@@ -128,8 +124,7 @@ pub struct ClkScale {
     frac: u6,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct RxStatus {
     #[bit(15, r)]
     rx_rtsn: bool,
@@ -155,8 +150,7 @@ pub struct RxStatus {
     data_available: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct TxStatus {
     #[bit(15, r)]
     tx_ctsn: bool,
@@ -180,8 +174,7 @@ pub struct FifoClear {
     rx: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptControl {
     /// Generate an interrrupt when the RX FIFO is at least half-full (FIFO count >= trigger level)
     #[bit(0, rw)]
@@ -206,8 +199,7 @@ pub struct InterruptControl {
     tx_cts: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptStatus {
     /// Generate an interrrupt when the RX FIFO is at least half-full (FIFO count >= trigger level)
     #[bit(0, r)]
@@ -250,8 +242,7 @@ pub struct FifoTrigger {
     level: u5,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct State {
     #[bits(0..=7, r)]
     rx_state: u8,

@@ -10,8 +10,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "thumbv7em-none-eabihf, thumbv6m-none-eabi"
-      - run: cargo check --target thumbv7em-none-eabihf --features vor4x
-      - run: cargo check --target thumbv6m-none-eabi --features vor1x
+      - run: cargo check --target thumbv7em-none-eabihf --features "vor4x, defmt"
+      - run: cargo check --target thumbv6m-none-eabi --features "vor1x, defmt"
 
   fmt:
     name: Check formatting
@@ -29,8 +29,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           targets: "thumbv7em-none-eabihf, thumbv6m-none-eabi"
-      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv7em-none-eabihf --features vor4x
-      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv6m-none-eabi --features vor1x
+      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv7em-none-eabihf --features "vor4x, defmt"
+      - run: RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --target thumbv6m-none-eabi --features "vor1x, defmt"
 
   clippy:
     name: Clippy

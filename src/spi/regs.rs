@@ -67,8 +67,7 @@ pub enum HwChipSelectId {
     Id7 = 7,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_fields(feature = "defmt"))]
 pub struct Control0 {
     #[bits(8..=15, rw)]
     scrdv: u8,
@@ -80,8 +79,7 @@ pub struct Control0 {
     word_size: Option<WordSize>,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Control1 {
     #[bit(11, rw)]
     mtxpause: bool,
@@ -122,8 +120,7 @@ pub struct Data {
     data: u16,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Status {
     /// TX FIFO below the trigger level.
     #[bit(7, r)]
@@ -160,8 +157,7 @@ impl ClkPrescaler {
     }
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptControl {
     /// TX FIFO count <= TX FIFO trigger level.
     #[bit(3, rw)]
@@ -178,8 +174,7 @@ pub struct InterruptControl {
     rx_overrun: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptStatus {
     /// TX FIFO count <= TX FIFO trigger level.
     #[bit(3, r)]
@@ -206,8 +201,7 @@ pub struct InterruptClear {
     rx_overrun: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct State {
     #[bits(0..=7, r)]
     rx_state: u8,
