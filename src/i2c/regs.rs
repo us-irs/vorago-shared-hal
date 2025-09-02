@@ -60,8 +60,7 @@ pub enum RxFifoFullMode {
     Nack = 1,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_fields(feature = "defmt"))]
 pub struct Control {
     #[bit(0, r)]
     clk_enabled: bool,
@@ -93,8 +92,7 @@ pub enum I2cSpeed {
     Fast400khz = 1,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_fields(feature = "defmt"))]
 pub struct ClkScale {
     /// Clock divide value. Reset value: 0x18.
     #[bits(0..=7, rw)]
@@ -124,8 +122,7 @@ pub enum Direction {
     Receive = 1,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Address {
     #[bit(0, rw)]
     direction: Direction,
@@ -160,8 +157,7 @@ pub struct Command {
     cancel: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct Status {
     #[bit(0, r)]
     i2c_idle: bool,
@@ -195,8 +191,7 @@ pub struct Status {
     raw_scl: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct State {
     #[bits(0..=3, rw)]
     state: u4,
@@ -214,8 +209,7 @@ pub struct State {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DataCount(arbitrary_int::UInt<u32, 11>);
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptControl {
     #[bit(0, rw)]
     i2c_idle: bool,
@@ -247,8 +241,7 @@ pub struct InterruptControl {
     rx_full: bool,
 }
 
-#[bitbybit::bitfield(u32)]
-#[derive(Debug)]
+#[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
 pub struct InterruptStatus {
     #[bit(0, r)]
     i2c_idle: bool,
@@ -398,8 +391,7 @@ pub mod slave {
         address: u10,
     }
 
-    #[bitbybit::bitfield(u32)]
-    #[derive(Debug)]
+    #[bitbybit::bitfield(u32, debug, defmt_fields(feature = "defmt"))]
     pub struct Status {
         #[bit(0, r)]
         completed: bool,
@@ -450,8 +442,7 @@ pub mod slave {
         tx_fifo: u5,
     }
 
-    #[bitbybit::bitfield(u32)]
-    #[derive(Debug)]
+    #[bitbybit::bitfield(u32, debug, defmt_fields(feature = "defmt"))]
     pub struct InterruptControl {
         #[bit(0, rw)]
         completed: bool,
@@ -488,8 +479,7 @@ pub mod slave {
         rx_full: bool,
     }
 
-    #[bitbybit::bitfield(u32)]
-    #[derive(Debug)]
+    #[bitbybit::bitfield(u32, debug, defmt_bitfields(feature = "defmt"))]
     pub struct InterruptStatus {
         #[bit(0, r)]
         completed: bool,

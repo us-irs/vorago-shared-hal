@@ -9,6 +9,7 @@ const BASE_ADDR: usize = 0x4001_8000;
 
 #[bitbybit::bitenum(u3)]
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum StatusSelect {
     /// Pulse when timer reaches 0.
     OneCyclePulse = 0b000,
@@ -25,7 +26,7 @@ pub enum StatusSelect {
     PwmaActiveBit = 0b110,
 }
 
-#[bitbybit::bitfield(u32)]
+#[bitbybit::bitfield(u32, debug, defmt_fields(feature = "defmt"))]
 pub struct Control {
     /// The counter is requested to stop on the next normal count cycle.
     #[bit(9, rw)]
@@ -50,6 +51,8 @@ pub struct Control {
     enable: bool,
 }
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct EnableControl(arbitrary_int::UInt<u32, 1>);
 
 impl EnableControl {
@@ -85,7 +88,7 @@ pub enum DualCascadeOp {
     LogicalOr = 1,
 }
 
-#[bitbybit::bitfield(u32, default = 0x0)]
+#[bitbybit::bitfield(u32, default = 0x0, debug, defmt_fields(feature = "defmt"))]
 pub struct CascadeControl {
     /// The counter is automatically disabled if the corresponding Cascade 2 level-sensitive input
     /// souce is active when the count reaches 0. If the counter is not 0, the cascade control is
