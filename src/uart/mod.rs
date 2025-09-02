@@ -529,7 +529,7 @@ impl Uart {
             if irq_cfg.route {
                 enable_peripheral_clock(PeripheralSelect::Irqsel);
                 unsafe { va108xx::Irqsel::steal() }
-                    .uart0(UartI::ID as usize)
+                    .uart(UartI::ID as usize)
                     .write(|w| unsafe { w.bits(irq_cfg.id as u32) });
             }
             if irq_cfg.enable_in_nvic {

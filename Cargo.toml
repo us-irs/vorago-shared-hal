@@ -27,8 +27,8 @@ thiserror = { version = "2", default-features = false }
 paste = "1"
 fugit = "0.3"
 defmt = { version = "1", optional = true }
-va108xx = { version = "0.5", default-features = false, optional = true }
-va416xx = { version = "0.4", default-features = false, optional = true }
+va108xx = { version = "0.6", default-features = false, optional = true }
+va416xx = { version = ">=0.4, <=0.5", default-features = false, optional = true }
 embassy-sync = "0.7"
 embassy-time-driver = "0.2"
 embassy-time-queue-utils = "0.3"

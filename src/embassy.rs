@@ -86,7 +86,7 @@ impl TimerDriver {
         let irqsel = unsafe { va108xx::Irqsel::steal() };
         // Switch on. Timekeeping should always be done.
         irqsel
-            .tim0(TimekeeperTim::ID.value() as usize)
+            .tim(TimekeeperTim::ID.value() as usize)
             .write(|w| unsafe { w.bits(timekeeper_irq as u32) });
         unsafe {
             enable_nvic_interrupt(timekeeper_irq);
@@ -111,7 +111,7 @@ impl TimerDriver {
             enable_nvic_interrupt(alarm_irq);
         }
         irqsel
-            .tim0(AlarmTim::ID.value() as usize)
+            .tim(AlarmTim::ID.value() as usize)
             .write(|w| unsafe { w.bits(alarm_irq as u32) });
     }
 
