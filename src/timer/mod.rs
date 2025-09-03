@@ -261,7 +261,7 @@ impl CountdownTimer {
             let irqsel = unsafe { pac::Irqsel::steal() };
             enable_peripheral_clock(PeripheralSelect::Irqsel);
             irqsel
-                .tim0(self.id.value() as usize)
+                .tim(self.id.value() as usize)
                 .write(|w| unsafe { w.bits(irq_cfg.id as u32) });
         }
         if irq_cfg.enable_in_nvic {

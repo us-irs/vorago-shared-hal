@@ -546,12 +546,12 @@ impl LowLevelGpio {
             // Set the correct interrupt number in the IRQSEL register
             super::Port::A => {
                 irqsel
-                    .porta0(self.id().offset())
+                    .porta(self.id().offset())
                     .write(|w| unsafe { w.bits(id as u32) });
             }
             super::Port::B => {
                 irqsel
-                    .portb0(self.id().offset())
+                    .portb(self.id().offset())
                     .write(|w| unsafe { w.bits(id as u32) });
             }
         }
@@ -566,12 +566,12 @@ impl LowLevelGpio {
             // Set the correct interrupt number in the IRQSEL register
             super::Port::A => {
                 irqsel
-                    .porta0(self.id().offset())
+                    .porta(self.id().offset())
                     .write(|w| unsafe { w.bits(u32::MAX) });
             }
             super::Port::B => {
                 irqsel
-                    .portb0(self.id().offset())
+                    .portb(self.id().offset())
                     .write(|w| unsafe { w.bits(u32::MAX) });
             }
         }
