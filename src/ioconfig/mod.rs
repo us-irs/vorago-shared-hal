@@ -1,3 +1,3 @@
-pub use regs::{FilterClkSel, FilterType};
+pub use regs::{FilterClockSelect, FilterType};
 
 pub mod regs;

@@ -1,6 +1,6 @@
 use crate::sysconfig::reset_peripheral_for_cycles;
 
-pub use crate::gpio::{Pin, PinId, PinIdProvider, Port};
+pub use crate::gpio::{DynPinId, Port};
 
 use crate::PeripheralSelect;
 use crate::sealed::Sealed;
@@ -9,8 +9,45 @@ use va108xx as pac;
 #[cfg(feature = "vor4x")]
 use va416xx as pac;
 
-pub trait PinMarker: Sealed {
-    const ID: PinId;
+/// Trait implemented by data structures associated with pin identification.
+pub trait PinId {
+    const ID: crate::gpio::ll::DynPinId;
+}
+
+pub trait AnyPin: Sealed {
+    const ID: DynPinId;
+}
+
+/// Primary Pin structure for the physical pins exposed by Vorago MCUs.
+///
+/// This pin structure is only used for resource management and does not do anything on its
+/// own.
+pub struct Pin<Id: PinId> {
+    phantom: core::marker::PhantomData<Id>,
+}
+
+impl<Id: PinId + Sealed> AnyPin for Pin<Id> {
+    const ID: DynPinId = Id::ID;
+}
+
+impl<I: PinId> Pin<I> {
+    #[allow(clippy::new_without_default)]
+    #[doc(hidden)]
+    pub const fn __new() -> Self {
+        Self {
+            phantom: core::marker::PhantomData,
+        }
+    }
+
+    /// Create a new pin instance.
+    ///
+    /// # Safety
+    ///
+    /// This circumvents ownership rules of the HAL and allows creating multiple instances
+    /// of the same pin.
+    pub const unsafe fn steal() -> Self {
+        Self::__new()
+    }
 }
 
 macro_rules! pin_id {
@@ -22,18 +59,14 @@ macro_rules! pin_id {
             pub enum $Id {}
 
             impl $crate::sealed::Sealed for $Id {}
-            impl PinIdProvider for $Id {
-                const ID: PinId = PinId::new_unchecked($Port, $num);
-            }
-
-            impl PinMarker for Pin<$Id> {
-                const ID: PinId = $Id::ID;
+            impl PinId for $Id {
+                const ID: DynPinId = DynPinId::new_unchecked($Port, $num);
             }
         }
     };
 }
 
-impl<I: PinIdProvider + Sealed> Sealed for Pin<I> {}
+impl<I: PinId + Sealed> Sealed for Pin<I> {}
 
 pin_id!(Pa0, Port::A, 0);
 pin_id!(Pa1, Port::A, 1);

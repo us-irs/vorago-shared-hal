@@ -7,7 +7,7 @@ use crate::timer::regs::{EnableControl, StatusSelect};
 use crate::{PeripheralSelect, enable_peripheral_clock};
 
 use crate::time::Hertz;
-use crate::timer::{self, TimId, TimMarker, TimPin};
+use crate::timer::{self, TimId, TimInstance, TimPin};
 
 const DUTY_MAX: u16 = u16::MAX;
 
@@ -46,7 +46,7 @@ pub struct PwmPin<Mode = PwmA> {
 
 impl<Mode> PwmPin<Mode> {
     /// Create a new PWM pin
-    pub fn new<Pin: TimPin, Tim: TimMarker>(
+    pub fn new<Pin: TimPin, Tim: TimInstance>(
         _pin: Pin,
         _tim: Tim,
         #[cfg(feature = "vor1x")] sys_clk: Hertz,

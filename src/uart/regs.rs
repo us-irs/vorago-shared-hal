@@ -117,7 +117,7 @@ pub struct Control {
 }
 
 #[bitbybit::bitfield(u32, default = 0x0, debug, defmt_bitfields(feature = "defmt"))]
-pub struct ClkScale {
+pub struct ClockScale {
     #[bits(6..=23, rw)]
     int: u18,
     #[bits(0..=5, rw)]
@@ -263,7 +263,7 @@ pub struct Uart {
     data: Data,
     enable: Enable,
     ctrl: Control,
-    clkscale: ClkScale,
+    clkscale: ClockScale,
     #[mmio(PureRead)]
     rx_status: RxStatus,
     #[mmio(PureRead)]

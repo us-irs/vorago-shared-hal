@@ -1,6 +1,6 @@
 pub use embedded_hal::digital::PinState;
 
-use crate::ioconfig::FilterClkSel;
+use crate::ioconfig::FilterClockSelect;
 use crate::ioconfig::FilterType;
 #[cfg(feature = "vor1x")]
 use crate::{PeripheralSelect, sysconfig::enable_peripheral_clock};
@@ -8,10 +8,10 @@ use crate::{PeripheralSelect, sysconfig::enable_peripheral_clock};
 pub use crate::InvalidOffsetError;
 pub use crate::Port;
 pub use crate::ioconfig::regs::Pull;
-use crate::ioconfig::regs::{FunSel, IoConfig, MmioIoConfig};
+use crate::ioconfig::regs::{FunctionSelect, IoConfig, MmioIoConfig};
+use crate::pins::PinId;
 
 use super::Pin;
-use super::PinIdProvider;
 
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -31,7 +31,7 @@ pub enum InterruptLevel {
 /// Pin identifier for all physical pins exposed by Vorago MCUs.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct PinId {
+pub struct DynPinId {
     port: Port,
     /// Offset within the port.
     offset: u8,
@@ -43,13 +43,13 @@ pub struct PinId {
 #[error("port G does not support interrupts")]
 pub struct PortDoesNotSupportInterrupts;
 
-impl PinId {
+impl DynPinId {
     /// Unchecked constructor which panics on invalid offsets.
     pub const fn new_unchecked(port: Port, offset: usize) -> Self {
         if offset >= port.max_offset() {
             panic!("Pin ID construction: offset is out of range");
         }
-        PinId {
+        DynPinId {
             port,
             offset: offset as u8,
         }
@@ -59,7 +59,7 @@ impl PinId {
         if offset >= port.max_offset() {
             return Err(InvalidOffsetError { offset, port });
         }
-        Ok(PinId {
+        Ok(DynPinId {
             port,
             offset: offset as u8,
         })
@@ -209,7 +209,7 @@ impl PinId {
 pub struct LowLevelGpio {
     gpio: super::regs::MmioGpio<'static>,
     ioconfig: MmioIoConfig<'static>,
-    id: PinId,
+    id: DynPinId,
 }
 
 impl core::fmt::Debug for LowLevelGpio {
@@ -225,12 +225,12 @@ impl LowLevelGpio {
     /// Create a new low-level GPIO pin instance from a given [Pin].
     ///
     /// Can be used for performing resource management of the [Pin]s.
-    pub fn new_with_pin<I: PinIdProvider>(_pin: Pin<I>) -> Self {
+    pub fn new_with_pin<I: PinId>(_pin: Pin<I>) -> Self {
         Self::new(I::ID)
     }
 
     /// Create a new low-level GPIO pin instance using only the [PinId].
-    pub fn new(id: PinId) -> Self {
+    pub fn new(id: DynPinId) -> Self {
         LowLevelGpio {
             gpio: super::regs::Gpio::new_mmio(id.port),
             ioconfig: IoConfig::new_mmio(),
@@ -239,7 +239,7 @@ impl LowLevelGpio {
     }
 
     #[inline]
-    pub fn id(&self) -> PinId {
+    pub fn id(&self) -> DynPinId {
         self.id
     }
 
@@ -255,7 +255,7 @@ impl LowLevelGpio {
 
     pub fn configure_as_input_floating(&mut self) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
-            config.set_funsel(FunSel::Sel0);
+            config.set_funsel(FunctionSelect::Sel0);
             config.set_io_disable(false);
             config.set_invert_input(false);
             config.set_open_drain(false);
@@ -273,7 +273,7 @@ impl LowLevelGpio {
 
     pub fn configure_as_input_with_pull(&mut self, pull: Pull) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
-            config.set_funsel(FunSel::Sel0);
+            config.set_funsel(FunctionSelect::Sel0);
             config.set_io_disable(false);
             config.set_invert_input(false);
             config.set_open_drain(false);
@@ -292,7 +292,7 @@ impl LowLevelGpio {
 
     pub fn configure_as_output_push_pull(&mut self, init_level: PinState) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
-            config.set_funsel(FunSel::Sel0);
+            config.set_funsel(FunctionSelect::Sel0);
             config.set_io_disable(false);
             config.set_invert_input(false);
             config.set_open_drain(false);
@@ -314,7 +314,7 @@ impl LowLevelGpio {
 
     pub fn configure_as_output_open_drain(&mut self, init_level: PinState) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
-            config.set_funsel(FunSel::Sel0);
+            config.set_funsel(FunctionSelect::Sel0);
             config.set_io_disable(false);
             config.set_invert_input(false);
             config.set_open_drain(true);
@@ -336,7 +336,7 @@ impl LowLevelGpio {
         });
     }
 
-    pub fn configure_as_peripheral_pin(&mut self, fun_sel: FunSel, pull: Option<Pull>) {
+    pub fn configure_as_peripheral_pin(&mut self, fun_sel: FunctionSelect, pull: Option<Pull>) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
             config.set_funsel(fun_sel);
             config.set_io_disable(false);
@@ -487,7 +487,7 @@ impl LowLevelGpio {
 
     /// Only useful for input pins
     #[inline]
-    pub fn configure_filter_type(&mut self, filter: FilterType, clksel: FilterClkSel) {
+    pub fn configure_filter_type(&mut self, filter: FilterType, clksel: FilterClockSelect) {
         self.ioconfig.modify_pin_config(self.id, |mut config| {
             config.set_filter_type(filter);
             config.set_filter_clk_sel(clksel);

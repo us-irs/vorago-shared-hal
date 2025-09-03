@@ -16,10 +16,10 @@ use core::convert::Infallible;
 pub mod regs;
 #[cfg(feature = "vor1x")]
 use crate::InterruptConfig;
-use crate::{FunSel, gpio::IoPeriphPin, pins::PinMarker, sealed::Sealed};
+use crate::{FunctionSelect, gpio::IoPeriphPin, pins::AnyPin, sealed::Sealed};
 use arbitrary_int::{prelude::*, u6, u18};
 use fugit::RateExtU32;
-use regs::{ClkScale, Control, Data, Enable, FifoClear, InterruptClear, MmioUart};
+use regs::{ClockScale, Control, Data, Enable, FifoClear, InterruptClear, MmioUart};
 
 use crate::{PeripheralSelect, enable_nvic_interrupt, enable_peripheral_clock, time::Hertz};
 use embedded_hal_nb::serial::Read;
@@ -47,13 +47,13 @@ pub use rx_asynch::*;
 // Type-Level support
 //==================================================================================================
 
-pub trait TxPin: PinMarker {
+pub trait TxPin: AnyPin {
     const BANK: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
 }
-pub trait RxPin: PinMarker {
+pub trait RxPin: AnyPin {
     const BANK: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
 }
 
 //==================================================================================================
@@ -180,33 +180,33 @@ impl From<Hertz> for Config {
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct IrqContextTimeoutOrMaxSize {
+pub struct InterruptContextTimeoutOrMaxSize {
     rx_idx: usize,
-    mode: IrqReceptionMode,
+    mode: InterruptReceptionMode,
     pub max_len: usize,
 }
 
-impl IrqContextTimeoutOrMaxSize {
+impl InterruptContextTimeoutOrMaxSize {
     pub fn new(max_len: usize) -> Self {
-        IrqContextTimeoutOrMaxSize {
+        InterruptContextTimeoutOrMaxSize {
             rx_idx: 0,
             max_len,
-            mode: IrqReceptionMode::Idle,
+            mode: InterruptReceptionMode::Idle,
         }
     }
 }
 
-impl IrqContextTimeoutOrMaxSize {
+impl InterruptContextTimeoutOrMaxSize {
     pub fn reset(&mut self) {
         self.rx_idx = 0;
-        self.mode = IrqReceptionMode::Idle;
+        self.mode = InterruptReceptionMode::Idle;
     }
 }
 
 /// This struct is used to return the default IRQ handler result to the user
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct IrqResult {
+pub struct InterruptResult {
     pub bytes_read: usize,
     pub errors: Option<UartErrors>,
 }
@@ -214,16 +214,16 @@ pub struct IrqResult {
 /// This struct is used to return the default IRQ handler result to the user
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct IrqResultMaxSizeOrTimeout {
+pub struct InterruptResultMaxSizeOrTimeout {
     complete: bool,
     timeout: bool,
     pub errors: Option<UartErrors>,
     pub bytes_read: usize,
 }
 
-impl IrqResultMaxSizeOrTimeout {
+impl InterruptResultMaxSizeOrTimeout {
     pub fn new() -> Self {
-        IrqResultMaxSizeOrTimeout {
+        InterruptResultMaxSizeOrTimeout {
             complete: false,
             timeout: false,
             errors: None,
@@ -231,7 +231,7 @@ impl IrqResultMaxSizeOrTimeout {
         }
     }
 }
-impl IrqResultMaxSizeOrTimeout {
+impl InterruptResultMaxSizeOrTimeout {
     #[inline]
     pub fn has_errors(&self) -> bool {
         self.errors.is_some()
@@ -265,7 +265,7 @@ impl IrqResultMaxSizeOrTimeout {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-enum IrqReceptionMode {
+enum InterruptReceptionMode {
     Idle,
     Pending,
 }
@@ -319,7 +319,7 @@ pub struct BufferTooShortError {
 // UART peripheral wrapper
 //==================================================================================================
 
-pub trait UartPeripheralMarker: Sealed {
+pub trait UartInstance: Sealed {
     const ID: Bank;
     const PERIPH_SEL: PeripheralSelect;
 }
@@ -329,7 +329,7 @@ pub type Uart0 = pac::Uarta;
 #[cfg(feature = "vor4x")]
 pub type Uart0 = pac::Uart0;
 
-impl UartPeripheralMarker for Uart0 {
+impl UartInstance for Uart0 {
     const ID: Bank = Bank::Uart0;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Uart0;
 }
@@ -340,14 +340,14 @@ pub type Uart1 = pac::Uartb;
 #[cfg(feature = "vor4x")]
 pub type Uart1 = pac::Uart1;
 
-impl UartPeripheralMarker for Uart1 {
+impl UartInstance for Uart1 {
     const ID: Bank = Bank::Uart1;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Uart1;
 }
 impl Sealed for Uart1 {}
 
 #[cfg(feature = "vor4x")]
-impl UartPeripheralMarker for pac::Uart2 {
+impl UartInstance for pac::Uart2 {
     const ID: Bank = Bank::Uart2;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Uart2;
 }
@@ -373,22 +373,22 @@ impl Uart {
     cfg_if::cfg_if! {
         if #[cfg(feature = "vor1x")] {
             /// Calls [Self::new] with the interrupt configuration to some valid value.
-            pub fn new_with_interrupt<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
-                uart: UartI,
-                tx_pin: TxPinI,
-                rx_pin: RxPinI,
+            pub fn new_with_interrupt<UartPeriph: UartInstance, Tx: TxPin, Rx: RxPin>(
+                uart: UartPeriph,
+                tx_pin: Tx,
+                rx_pin: Rx,
                 sys_clk: Hertz,
                 config: Config,
                 irq_cfg: InterruptConfig,
-            ) -> Result<Uart, UartIdMissmatchError> {
+            ) -> Result<Self, UartIdMissmatchError> {
                 Self::new(uart, tx_pin, rx_pin, sys_clk, config, Some(irq_cfg))
             }
 
             /// Calls [Self::new] with the interrupt configuration to [None].
-            pub fn new_without_interrupt<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
-                uart: UartI,
-                tx_pin: TxPinI,
-                rx_pin: RxPinI,
+            pub fn new_without_interrupt<UartPeriph: UartInstance, Tx: TxPin, Rx: RxPin>(
+                uart: UartPeriph,
+                tx_pin: Tx,
+                rx_pin: Rx,
                 sys_clk: Hertz,
                 config: Config,
             ) -> Result<Self, UartIdMissmatchError> {
@@ -407,10 +407,10 @@ impl Uart {
             /// - `irq_cfg`: Optional interrupt configuration. This should be a valid value if the plan
             ///   is to use TX or RX functionality relying on interrupts. If only the blocking API without
             ///   any interrupt support is used, this can be [None].
-            pub fn new<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
-                uart: UartI,
-                tx_pin: TxPinI,
-                rx_pin: RxPinI,
+            pub fn new<UartPeriph: UartInstance, Tx: TxPin, Rx: RxPin>(
+                uart: UartPeriph,
+                tx_pin: Tx,
+                rx_pin: Rx,
                 sys_clk: Hertz,
                 config: Config,
                 opt_irq_cfg: Option<InterruptConfig>,
@@ -426,10 +426,10 @@ impl Uart {
             /// - `uart`: The concrete UART peripheral instance.
             /// - `pins`: UART TX and RX pin tuple.
             /// - `config`: UART specific configuration parameters like baudrate.
-            pub fn new<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
+            pub fn new<UartI: UartInstance, Tx: TxPin, Rx: RxPin>(
                 uart: UartI,
-                tx_pin: TxPinI,
-                rx_pin: RxPinI,
+                tx_pin: Tx,
+                rx_pin: Rx,
                 clks: &Clocks,
                 config: Config,
             ) -> Result<Self, UartIdMissmatchError> {
@@ -448,10 +448,10 @@ impl Uart {
             /// - `uart`: The concrete UART peripheral instance.
             /// - `pins`: UART TX and RX pin tuple.
             /// - `config`: UART specific configuration parameters like baudrate.
-            pub fn new_with_ref_clk<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
-                uart: UartI,
-                tx_pin: TxPinI,
-                rx_pin: RxPinI,
+            pub fn new_with_ref_clk<Uart: UartInstance, Tx: TxPin, Rx: RxPin>(
+                uart: Uart,
+                tx_pin: Tx,
+                rx_pin: Rx,
                 ref_clk: Hertz,
                 config: Config,
             ) -> Result<Self, UartIdMissmatchError> {
@@ -460,7 +460,7 @@ impl Uart {
         }
     }
 
-    fn new_internal<UartI: UartPeripheralMarker, TxPinI: TxPin, RxPinI: RxPin>(
+    fn new_internal<UartI: UartInstance, TxPinI: TxPin, RxPinI: RxPin>(
         _uart: UartI,
         _pins: (TxPinI, RxPinI),
         ref_clk: Hertz,
@@ -489,7 +489,7 @@ impl Uart {
         let x = ref_clk.raw() as f32 / (config.baudrate.raw() * baud_multiplier) as f32;
         let integer_part = x as u32;
         reg_block.write_clkscale(
-            ClkScale::builder()
+            ClockScale::builder()
                 .with_int(u18::new(integer_part))
                 .with_frac(u6::new(frac as u8))
                 .build(),
@@ -545,7 +545,7 @@ impl Uart {
     }
 
     #[inline]
-    pub fn perid(&self) -> u32 {
+    pub fn peripheral_id(&self) -> u32 {
         self.tx.perid()
     }
 
@@ -1095,12 +1095,12 @@ impl RxWithInterrupt {
     /// of a packet.
     pub fn read_fixed_len_or_timeout_based_using_irq(
         &mut self,
-        context: &mut IrqContextTimeoutOrMaxSize,
+        context: &mut InterruptContextTimeoutOrMaxSize,
     ) -> Result<(), TransferPendingError> {
-        if context.mode != IrqReceptionMode::Idle {
+        if context.mode != InterruptReceptionMode::Idle {
             return Err(TransferPendingError);
         }
-        context.mode = IrqReceptionMode::Pending;
+        context.mode = InterruptReceptionMode::Pending;
         context.rx_idx = 0;
         self.start();
         Ok(())
@@ -1131,9 +1131,9 @@ impl RxWithInterrupt {
     ///
     /// This function will not disable the RX interrupts, so you don't need to call any other
     /// API after calling this function to continue emptying the FIFO. RX errors are handled
-    /// as partial errors and are returned as part of the [IrqResult].
-    pub fn on_interrupt(&mut self, buf: &mut [u8; 16]) -> IrqResult {
-        let mut result = IrqResult::default();
+    /// as partial errors and are returned as part of the [InterruptResult].
+    pub fn on_interrupt(&mut self, buf: &mut [u8; 16]) -> InterruptResult {
+        let mut result = InterruptResult::default();
 
         let irq_status = self.0.regs.read_irq_status();
         let irq_enabled = self.0.regs.read_irq_enabled();
@@ -1182,23 +1182,23 @@ impl RxWithInterrupt {
     ///
     /// If either the maximum number of packets have been read or a timeout occured, the transfer
     /// will be deemed completed. The state information of the transfer is tracked in the
-    /// [IrqContextTimeoutOrMaxSize] structure.
+    /// [InterruptContextTimeoutOrMaxSize] structure.
     ///
     /// If passed buffer is equal to or larger than the specified maximum length, an
     /// [BufferTooShortError] will be returned. Other RX errors are treated as partial errors
-    /// and returned inside the [IrqResultMaxSizeOrTimeout] structure.
+    /// and returned inside the [InterruptResultMaxSizeOrTimeout] structure.
     pub fn on_interrupt_max_size_or_timeout_based(
         &mut self,
-        context: &mut IrqContextTimeoutOrMaxSize,
+        context: &mut InterruptContextTimeoutOrMaxSize,
         buf: &mut [u8],
-    ) -> Result<IrqResultMaxSizeOrTimeout, BufferTooShortError> {
+    ) -> Result<InterruptResultMaxSizeOrTimeout, BufferTooShortError> {
         if buf.len() < context.max_len {
             return Err(BufferTooShortError {
                 found: buf.len(),
                 expected: context.max_len,
             });
         }
-        let mut result = IrqResultMaxSizeOrTimeout::default();
+        let mut result = InterruptResultMaxSizeOrTimeout::default();
 
         let irq_status = self.0.regs.read_irq_status();
         let rx_enabled = self.0.regs.read_enable().rx();
@@ -1283,14 +1283,14 @@ impl RxWithInterrupt {
 
     fn irq_completion_handler_max_size_timeout(
         &mut self,
-        res: &mut IrqResultMaxSizeOrTimeout,
-        context: &mut IrqContextTimeoutOrMaxSize,
+        res: &mut InterruptResultMaxSizeOrTimeout,
+        context: &mut InterruptContextTimeoutOrMaxSize,
     ) {
         self.disable_interrupts();
         self.0.disable();
         res.bytes_read = context.rx_idx;
         res.complete = true;
-        context.mode = IrqReceptionMode::Idle;
+        context.mode = InterruptReceptionMode::Idle;
         context.rx_idx = 0;
     }
 

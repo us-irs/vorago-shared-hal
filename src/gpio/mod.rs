@@ -1,53 +1,21 @@
 //! GPIO support module.
 use core::convert::Infallible;
 
-pub use crate::ioconfig::{FilterClkSel, FilterType, regs::FunSel};
+pub use crate::ioconfig::{FilterClockSelect, FilterType, regs::FunctionSelect};
+pub use crate::pins::{Pin, PinId};
 pub use embedded_hal::digital::PinState;
-pub use ll::{InterruptEdge, InterruptLevel, PinId, Port, Pull};
+pub use ll::{DynPinId, InterruptEdge, InterruptLevel, Port, Pull};
 
 pub mod asynch;
 pub mod ll;
 pub mod regs;
-
-/// Trait implemented by data structures assocaited with pin identifiacation.
-pub trait PinIdProvider {
-    const ID: ll::PinId;
-}
-
-/// Primary Pin structure for the physical pins exposed by Vorago MCUs.
-///
-/// This pin structure is only used for resource management and does not do anything on its
-/// own.
-pub struct Pin<I: PinIdProvider> {
-    phantom: core::marker::PhantomData<I>,
-}
-
-impl<I: PinIdProvider> Pin<I> {
-    #[allow(clippy::new_without_default)]
-    #[doc(hidden)]
-    pub const fn __new() -> Self {
-        Self {
-            phantom: core::marker::PhantomData,
-        }
-    }
-
-    /// Create a new pin instance.
-    ///
-    /// # Safety
-    ///
-    /// This circumvents ownership rules of the HAL and allows creating multiple instances
-    /// of the same pin.
-    pub const unsafe fn steal() -> Self {
-        Self::__new()
-    }
-}
 
 /// Push-Pull output pin.
 #[derive(Debug)]
 pub struct Output(ll::LowLevelGpio);
 
 impl Output {
-    pub fn new<I: PinIdProvider>(_pin: Pin<I>, init_level: PinState) -> Self {
+    pub fn new<I: PinId>(_pin: Pin<I>, init_level: PinState) -> Self {
         let mut ll = ll::LowLevelGpio::new(I::ID);
         ll.configure_as_output_push_pull(init_level);
         Output(ll)
@@ -139,20 +107,20 @@ impl embedded_hal::digital::StatefulOutputPin for Output {
 pub struct Input(ll::LowLevelGpio);
 
 impl Input {
-    pub fn new_floating<I: PinIdProvider>(_pin: Pin<I>) -> Self {
+    pub fn new_floating<I: PinId>(_pin: Pin<I>) -> Self {
         let mut ll = ll::LowLevelGpio::new(I::ID);
         ll.configure_as_input_floating();
         Input(ll)
     }
 
-    pub fn new_with_pull<I: PinIdProvider>(_pin: Pin<I>, pull: Pull) -> Self {
+    pub fn new_with_pull<I: PinId>(_pin: Pin<I>, pull: Pull) -> Self {
         let mut ll = ll::LowLevelGpio::new(I::ID);
         ll.configure_as_input_with_pull(pull);
         Input(ll)
     }
 
     #[inline]
-    pub fn id(&self) -> PinId {
+    pub fn id(&self) -> DynPinId {
         self.0.id()
     }
 
@@ -187,7 +155,7 @@ impl Input {
     }
 
     #[inline]
-    pub fn configure_filter_type(&mut self, filter: FilterType, clksel: FilterClkSel) {
+    pub fn configure_filter_type(&mut self, filter: FilterType, clksel: FilterClockSelect) {
         self.0.configure_filter_type(filter, clksel);
     }
 
@@ -252,7 +220,7 @@ pub struct Flex {
 }
 
 impl Flex {
-    pub fn new<I: PinIdProvider>(_pin: Pin<I>) -> Self {
+    pub fn new<I: PinId>(_pin: Pin<I>) -> Self {
         let mut ll = ll::LowLevelGpio::new(I::ID);
         ll.configure_as_input_floating();
         Flex {
@@ -360,13 +328,13 @@ impl embedded_hal::digital::StatefulOutputPin for Flex {
 /// Can be used to configure pins as IO peripheral pins.
 pub struct IoPeriphPin {
     ll: ll::LowLevelGpio,
-    fun_sel: FunSel,
+    fun_sel: FunctionSelect,
 }
 
 impl IoPeriphPin {
-    pub fn new_with_pin<I: PinIdProvider>(
+    pub fn new_with_pin<I: PinId>(
         _pin: Pin<I>,
-        fun_sel: FunSel,
+        fun_sel: FunctionSelect,
         pull: Option<Pull>,
     ) -> Self {
         let mut ll = ll::LowLevelGpio::new(I::ID);
@@ -374,7 +342,7 @@ impl IoPeriphPin {
         IoPeriphPin { ll, fun_sel }
     }
 
-    pub fn new(pin_id: PinId, fun_sel: FunSel, pull: Option<Pull>) -> Self {
+    pub fn new(pin_id: DynPinId, fun_sel: FunctionSelect, pull: Option<Pull>) -> Self {
         let mut ll = ll::LowLevelGpio::new(pin_id);
         ll.configure_as_peripheral_pin(fun_sel, pull);
         IoPeriphPin { ll, fun_sel }
@@ -388,7 +356,7 @@ impl IoPeriphPin {
         self.ll.offset()
     }
 
-    pub fn fun_sel(&self) -> FunSel {
+    pub fn fun_sel(&self) -> FunctionSelect {
         self.fun_sel
     }
 }

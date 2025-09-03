@@ -93,7 +93,7 @@ pub enum I2cSpeed {
 }
 
 #[bitbybit::bitfield(u32, default = 0x0, debug, defmt_fields(feature = "defmt"))]
-pub struct ClkScale {
+pub struct ClockScale {
     /// Clock divide value. Reset value: 0x18.
     #[bits(0..=7, rw)]
     div: u8,
@@ -313,11 +313,11 @@ pub struct TimingConfig {
     t_buf: u4,
 }
 
-pub struct ClkTimeoutLimit(pub arbitrary_int::UInt<u32, 20>);
+pub struct ClockTimeoutLimit(pub arbitrary_int::UInt<u32, 20>);
 
-impl ClkTimeoutLimit {
+impl ClockTimeoutLimit {
     pub fn new(value: u20) -> Self {
-        ClkTimeoutLimit(arbitrary_int::UInt::<u32, 20>::new(value.value()))
+        ClockTimeoutLimit(arbitrary_int::UInt::<u32, 20>::new(value.value()))
     }
     pub fn value(&self) -> u20 {
         self.0
@@ -591,7 +591,7 @@ pub mod slave {
 #[repr(C)]
 pub struct I2c {
     control: Control,
-    clkscale: ClkScale,
+    clkscale: ClockScale,
     words: Words,
     address: Address,
     data: Data,
@@ -617,7 +617,7 @@ pub struct I2c {
     #[mmio(Write)]
     fifo_clear: FifoClear,
     timing_config: TimingConfig,
-    clk_timeout_limit: ClkTimeoutLimit,
+    clk_timeout_limit: ClockTimeoutLimit,
 
     _reserved_0: [u32; 0x2D],
 

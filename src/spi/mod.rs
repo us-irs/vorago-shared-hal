@@ -1,12 +1,10 @@
-use crate::FunSel;
-use crate::gpio::{IoPeriphPin, PinId};
-use crate::{
-    PeripheralSelect, enable_peripheral_clock, pins::PinMarker, sealed::Sealed, time::Hertz,
-};
+use crate::FunctionSelect;
+use crate::gpio::{DynPinId, IoPeriphPin};
+use crate::{PeripheralSelect, enable_peripheral_clock, pins::AnyPin, sealed::Sealed, time::Hertz};
 use core::{convert::Infallible, fmt::Debug, marker::PhantomData};
 use embedded_hal::spi::{MODE_0, Mode};
 
-use regs::{ClkPrescaler, Data, FifoClear, WordSize};
+use regs::{ClockPrescaler, Data, FifoClear, WordSize};
 #[cfg(feature = "vor1x")]
 use va108xx as pac;
 #[cfg(feature = "vor4x")]
@@ -16,7 +14,7 @@ pub use regs::{Bank, HwChipSelectId};
 
 pub mod regs;
 
-pub fn configure_pin_as_hw_cs_pin<P: PinMarker + HwCsProvider>(_pin: P) -> HwChipSelectId {
+pub fn configure_pin_as_hw_cs_pin<P: AnyPin + HwCsProvider>(_pin: P) -> HwChipSelectId {
     IoPeriphPin::new(P::ID, P::FUN_SEL, None);
     P::CS_ID
 }
@@ -25,25 +23,25 @@ pub fn configure_pin_as_hw_cs_pin<P: PinMarker + HwCsProvider>(_pin: P) -> HwChi
 // Pins and traits.
 //==================================================================================================
 
-pub trait PinSck: PinMarker {
+pub trait PinSck: AnyPin {
     const SPI_ID: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
 }
 
-pub trait PinMosi: PinMarker {
+pub trait PinMosi: AnyPin {
     const SPI_ID: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
 }
 
-pub trait PinMiso: PinMarker {
+pub trait PinMiso: AnyPin {
     const SPI_ID: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
 }
 
 pub trait HwCsProvider {
-    const PIN_ID: PinId;
+    const PIN_ID: DynPinId;
     const SPI_ID: Bank;
-    const FUN_SEL: FunSel;
+    const FUN_SEL: FunctionSelect;
     const CS_ID: HwChipSelectId;
 }
 
@@ -77,9 +75,9 @@ mod macros {
             impl crate::sealed::Sealed for $name {}
 
             impl HwCsProvider for $name {
-                const PIN_ID: PinId = <$pin_id as PinIdProvider>::ID;
+                const PIN_ID: DynPinId = <$pin_id as PinId>::ID;
                 const SPI_ID: Bank = $spi_id;
-                const FUN_SEL: FunSel = $fun_sel;
+                const FUN_SEL: FunctionSelect = $fun_sel;
                 const CS_ID: HwChipSelectId = $cs_id;
             }
         };
@@ -90,9 +88,9 @@ mod macros {
         ($SpiId:path, $(($Px:ident, $FunSel:path, $HwCsIdent:path)$(,)?)+) => {
             $(
                 impl HwCsProvider for Pin<$Px> {
-                    const PIN_ID: PinId = $Px::ID;
+                    const PIN_ID: DynPinId = $Px::ID;
                     const SPI_ID: Bank = $SpiId;
-                    const FUN_SEL: FunSel = $FunSel;
+                    const FUN_SEL: FunctionSelect = $FunSel;
                     const CS_ID: HwChipSelectId = $HwCsIdent;
                 }
             )+
@@ -119,7 +117,7 @@ pub const DEFAULT_CLK_DIV: u16 = 2;
 
 /// Common trait implemented by all PAC peripheral access structures. The register block
 /// format is the same for all SPI blocks.
-pub trait SpiMarker: Sealed {
+pub trait SpiInstance: Sealed {
     const ID: Bank;
     const PERIPH_SEL: PeripheralSelect;
 }
@@ -129,7 +127,7 @@ pub type Spi0 = pac::Spia;
 #[cfg(feature = "vor4x")]
 pub type Spi0 = pac::Spi0;
 
-impl SpiMarker for Spi0 {
+impl SpiInstance for Spi0 {
     const ID: Bank = Bank::Spi0;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Spi0;
 }
@@ -140,7 +138,7 @@ pub type Spi1 = pac::Spib;
 #[cfg(feature = "vor4x")]
 pub type Spi1 = pac::Spi1;
 
-impl SpiMarker for Spi1 {
+impl SpiInstance for Spi1 {
     const ID: Bank = Bank::Spi1;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Spi1;
 }
@@ -151,14 +149,14 @@ pub type Spi2 = pac::Spic;
 #[cfg(feature = "vor4x")]
 pub type Spi2 = pac::Spi2;
 
-impl SpiMarker for Spi2 {
+impl SpiInstance for Spi2 {
     const ID: Bank = Bank::Spi2;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Spi2;
 }
 impl Sealed for Spi2 {}
 
 #[cfg(feature = "vor4x")]
-impl SpiMarker for pac::Spi3 {
+impl SpiInstance for pac::Spi3 {
     const ID: Bank = Bank::Spi3;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::Spi3;
 }
@@ -173,7 +171,7 @@ pub trait TransferConfigProvider {
     fn sod(&mut self, sod: bool);
     fn blockmode(&mut self, blockmode: bool);
     fn mode(&mut self, mode: Mode);
-    fn clk_cfg(&mut self, clk_cfg: SpiClkConfig);
+    fn clk_cfg(&mut self, clk_cfg: SpiClockConfig);
     fn hw_cs_id(&self) -> u8;
 }
 
@@ -182,7 +180,7 @@ pub trait TransferConfigProvider {
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TransferConfig {
-    pub clk_cfg: Option<SpiClkConfig>,
+    pub clk_cfg: Option<SpiClockConfig>,
     pub mode: Option<Mode>,
     pub sod: bool,
     /// If this is enabled, all data in the FIFO is transmitted in a single frame unless
@@ -197,7 +195,7 @@ pub struct TransferConfig {
 
 impl TransferConfig {
     pub fn new_with_hw_cs(
-        clk_cfg: Option<SpiClkConfig>,
+        clk_cfg: Option<SpiClockConfig>,
         mode: Option<Mode>,
         blockmode: bool,
         bmstall: bool,
@@ -219,7 +217,7 @@ impl TransferConfig {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SpiConfig {
-    clk: SpiClkConfig,
+    clk: SpiClockConfig,
     // SPI mode configuration
     pub init_mode: Mode,
     /// If this is enabled, all data in the FIFO is transmitted in a single frame unless
@@ -244,7 +242,7 @@ impl Default for SpiConfig {
             blockmode: true,
             bmstall: true,
             // Default value is definitely valid.
-            clk: SpiClkConfig::from_div(DEFAULT_CLK_DIV).unwrap(),
+            clk: SpiClockConfig::from_div(DEFAULT_CLK_DIV).unwrap(),
             slave_output_disable: Default::default(),
             loopback_mode: Default::default(),
             master_delayer_capture: Default::default(),
@@ -273,7 +271,7 @@ impl SpiConfig {
         self
     }
 
-    pub fn clk_cfg(mut self, clk_cfg: SpiClkConfig) -> Self {
+    pub fn clk_cfg(mut self, clk_cfg: SpiClockConfig) -> Self {
         self.clk = clk_cfg;
         self
     }
@@ -290,13 +288,13 @@ impl SpiConfig {
 
 /// Configuration trait for the Word Size
 /// used by the SPI peripheral
-pub trait WordProvider: Copy + Default + Into<u32> + TryFrom<u32> + 'static {
+pub trait SpiWord: Copy + Default + Into<u32> + TryFrom<u32> + 'static {
     const MASK: u32;
     const WORD_SIZE: regs::WordSize;
     fn word_reg() -> u8;
 }
 
-impl WordProvider for u8 {
+impl SpiWord for u8 {
     const MASK: u32 = 0xff;
     const WORD_SIZE: regs::WordSize = regs::WordSize::EightBits;
     fn word_reg() -> u8 {
@@ -304,7 +302,7 @@ impl WordProvider for u8 {
     }
 }
 
-impl WordProvider for u16 {
+impl SpiWord for u16 {
     const MASK: u32 = 0xffff;
     const WORD_SIZE: regs::WordSize = regs::WordSize::SixteenBits;
     fn word_reg() -> u8 {
@@ -358,12 +356,12 @@ pub fn mode_to_cpo_cph_bit(mode: embedded_hal::spi::Mode) -> (bool, bool) {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SpiClkConfig {
+pub struct SpiClockConfig {
     prescale_val: u8,
     scrdv: u8,
 }
 
-impl SpiClkConfig {
+impl SpiClockConfig {
     pub fn prescale_val(&self) -> u8 {
         self.prescale_val
     }
@@ -372,7 +370,7 @@ impl SpiClkConfig {
     }
 }
 
-impl SpiClkConfig {
+impl SpiClockConfig {
     pub fn new(prescale_val: u8, scrdv: u8) -> Self {
         Self {
             prescale_val,
@@ -380,7 +378,7 @@ impl SpiClkConfig {
         }
     }
 
-    pub fn from_div(div: u16) -> Result<Self, SpiClkConfigError> {
+    pub fn from_div(div: u16) -> Result<Self, SpiClockConfigError> {
         spi_clk_config_from_div(div)
     }
 
@@ -402,7 +400,7 @@ impl SpiClkConfig {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SpiClkConfigError {
+pub enum SpiClockConfigError {
     #[error("division by zero")]
     DivIsZero,
     #[error("divide value is not even")]
@@ -412,12 +410,12 @@ pub enum SpiClkConfigError {
 }
 
 #[inline]
-pub fn spi_clk_config_from_div(mut div: u16) -> Result<SpiClkConfig, SpiClkConfigError> {
+pub fn spi_clk_config_from_div(mut div: u16) -> Result<SpiClockConfig, SpiClockConfigError> {
     if div == 0 {
-        return Err(SpiClkConfigError::DivIsZero);
+        return Err(SpiClockConfigError::DivIsZero);
     }
     if div % 2 != 0 {
-        return Err(SpiClkConfigError::DivideValueNotEven);
+        return Err(SpiClockConfigError::DivideValueNotEven);
     }
     let mut prescale_val = 0;
 
@@ -430,14 +428,14 @@ pub fn spi_clk_config_from_div(mut div: u16) -> Result<SpiClkConfig, SpiClkConfi
     }
 
     if prescale_val == 0 {
-        return Err(SpiClkConfigError::DivideValueNotEven);
+        return Err(SpiClockConfigError::DivideValueNotEven);
     }
 
     div /= prescale_val;
     if div > u8::MAX as u16 + 1 {
-        return Err(SpiClkConfigError::ScrdvValueTooLarge);
+        return Err(SpiClockConfigError::ScrdvValueTooLarge);
     }
-    Ok(SpiClkConfig {
+    Ok(SpiClockConfig {
         prescale_val: prescale_val as u8,
         scrdv: (div - 1) as u8,
     })
@@ -486,7 +484,7 @@ pub struct Spi<Word = u8> {
     word: PhantomData<Word>,
 }
 
-impl<Word: WordProvider> Spi<Word>
+impl<Word: SpiWord> Spi<Word>
 where
     <Word as TryFrom<u32>>::Error: core::fmt::Debug,
 {
@@ -496,7 +494,7 @@ where
     ///
     /// * `spi` - SPI bus to use
     /// * `spi_cfg` - Configuration specific to the SPI bus
-    pub fn new_for_rom<SpiI: SpiMarker>(
+    pub fn new_for_rom<SpiI: SpiInstance>(
         spi: SpiI,
         spi_cfg: SpiConfig,
     ) -> Result<Self, SpiIdMissmatchError> {
@@ -519,7 +517,7 @@ where
     /// * `pins` - Pins to be used for SPI transactions. These pins are consumed
     ///   to ensure the pins can not be used for other purposes anymore
     /// * `spi_cfg` - Configuration specific to the SPI bus
-    pub fn new<SpiI: SpiMarker, Sck: PinSck, Miso: PinMiso, Mosi: PinMosi>(
+    pub fn new<SpiI: SpiInstance, Sck: PinSck, Miso: PinMiso, Mosi: PinMosi>(
         spi: SpiI,
         _pins: (Sck, Miso, Mosi),
         spi_cfg: SpiConfig,
@@ -533,7 +531,7 @@ where
         Ok(Self::new_generic(spi, spi_cfg))
     }
 
-    pub fn new_generic<SpiI: SpiMarker>(_spi: SpiI, spi_cfg: SpiConfig) -> Self {
+    pub fn new_generic<SpiI: SpiInstance>(_spi: SpiI, spi_cfg: SpiConfig) -> Self {
         enable_peripheral_clock(SpiI::PERIPH_SEL);
         let mut regs = regs::Spi::new_mmio(SpiI::ID);
         let (cpo_bit, cph_bit) = mode_to_cpo_cph_bit(spi_cfg.init_mode);
@@ -559,7 +557,7 @@ where
                 .with_lbm(spi_cfg.loopback_mode)
                 .build(),
         );
-        regs.write_clkprescale(ClkPrescaler::new(spi_cfg.clk.prescale_val));
+        regs.write_clkprescale(ClockPrescaler::new(spi_cfg.clk.prescale_val));
         regs.write_fifo_clear(
             FifoClear::builder()
                 .with_tx_fifo(true)
@@ -584,13 +582,13 @@ where
     }
 
     #[inline]
-    pub fn cfg_clock(&mut self, cfg: SpiClkConfig) {
+    pub fn cfg_clock(&mut self, cfg: SpiClockConfig) {
         self.regs.modify_ctrl0(|mut value| {
             value.set_scrdv(cfg.scrdv);
             value
         });
         self.regs
-            .write_clkprescale(regs::ClkPrescaler::new(cfg.prescale_val));
+            .write_clkprescale(regs::ClockPrescaler::new(cfg.prescale_val));
     }
 
     pub fn set_fill_word(&mut self, fill_word: Word) {
@@ -598,7 +596,7 @@ where
     }
 
     #[inline]
-    pub fn cfg_clock_from_div(&mut self, div: u16) -> Result<(), SpiClkConfigError> {
+    pub fn cfg_clock_from_div(&mut self, div: u16) -> Result<(), SpiClockConfigError> {
         let val = spi_clk_config_from_div(div)?;
         self.cfg_clock(val);
         Ok(())
@@ -772,9 +770,9 @@ where
     }
 }
 
-impl<Word: WordProvider> SpiLowLevel for Spi<Word>
+impl<W: SpiWord> SpiLowLevel for Spi<W>
 where
-    <Word as TryFrom<u32>>::Error: core::fmt::Debug,
+    <W as TryFrom<u32>>::Error: core::fmt::Debug,
 {
     #[inline(always)]
     fn write_fifo(&mut self, data: u32) -> nb::Result<(), Infallible> {
@@ -804,11 +802,11 @@ where
     }
 }
 
-impl<Word: WordProvider> embedded_hal::spi::ErrorType for Spi<Word> {
+impl<Word: SpiWord> embedded_hal::spi::ErrorType for Spi<Word> {
     type Error = Infallible;
 }
 
-impl<Word: WordProvider> embedded_hal::spi::SpiBus<Word> for Spi<Word>
+impl<Word: SpiWord> embedded_hal::spi::SpiBus<Word> for Spi<Word>
 where
     <Word as TryFrom<u32>>::Error: core::fmt::Debug,
 {

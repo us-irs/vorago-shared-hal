@@ -1,7 +1,7 @@
 [package]
-name = "vorago-shared-periphs"
+name = "vorago-shared-hal"
 version = "0.1.0"
-description = "Peripheral drivers shared between Vorago families"
+description = "Peripheral HAL components shared between Vorago families"
 edition = "2024"
 homepage = "https://egit.irs.uni-stuttgart.de/rust/vorago-shared-periphs"
 repository = "https://egit.irs.uni-stuttgart.de/rust/vorago-shared-periphs"
