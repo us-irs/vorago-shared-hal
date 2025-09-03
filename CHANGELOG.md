@@ -28,6 +28,6 @@ Renamed to `vorago-shared-hal`
 
 Init commit.
 
-[unreleased]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-periphs/compare/v0.1.0...HEAD
-[unreleased]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-periphs/compare/v0.1.0...v0.2.0
-[v0.1.0]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-periphs/src/tag/v0.1.0
+[unreleased]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-hal/compare/v0.1.0...HEAD
+[unreleased]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-hal/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://egit.irs.uni-stuttgart.de/rust/vorago-shared-hal/src/tag/v0.1.0
