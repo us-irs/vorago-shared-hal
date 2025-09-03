@@ -1,4 +1,4 @@
-[![Crates.io](https://img.shields.io/crates/v/vorago-shared-periphs)](https://crates.io/crates/vorago-shared-periphs)
+[![Crates.io](https://img.shields.io/crates/v/vorago-shared-hal)](https://crates.io/crates/vorago-shared-hal)
 
 Vorago Shared Peripherals
 ========
