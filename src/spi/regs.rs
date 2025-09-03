@@ -146,11 +146,11 @@ pub struct Status {
 /// are used as clock divisor values, and uneven values are truncated to the next even value.
 /// A value of 0 acts as a 1 for the divisor value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ClkPrescaler(arbitrary_int::UInt<u32, 8>);
+pub struct ClockPrescaler(arbitrary_int::UInt<u32, 8>);
 
-impl ClkPrescaler {
+impl ClockPrescaler {
     pub const fn new(value: u8) -> Self {
-        ClkPrescaler(arbitrary_int::UInt::<u32, 8>::new(value as u32))
+        ClockPrescaler(arbitrary_int::UInt::<u32, 8>::new(value as u32))
     }
     pub const fn value(&self) -> u8 {
         self.0.value() as u8
@@ -220,7 +220,7 @@ pub struct Spi {
     data: Data,
     #[mmio(PureRead)]
     status: Status,
-    clkprescale: ClkPrescaler,
+    clkprescale: ClockPrescaler,
     irq_enb: InterruptControl,
     /// Raw interrupt status.
     #[mmio(PureRead)]

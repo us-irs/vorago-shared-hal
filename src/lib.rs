@@ -1,3 +1,4 @@
+//! Shared HAL code for Vorago VA108xx and VA416xx microcontrollers.
 #![no_std]
 #[cfg(feature = "vor4x")]
 pub mod clock;
@@ -21,7 +22,7 @@ pub use sysconfig::{
 #[cfg(not(feature = "_family-selected"))]
 compile_error!("no Vorago CPU family was select. Choices: vor1x or vor4x");
 
-pub use ioconfig::regs::FunSel;
+pub use ioconfig::regs::FunctionSelect;
 #[cfg(feature = "vor1x")]
 use va108xx as pac;
 #[cfg(feature = "vor4x")]

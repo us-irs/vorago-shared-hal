@@ -26,7 +26,7 @@ use va108xx as pac;
 pub use super::ll::InterruptEdge;
 use super::{
     Input, Port,
-    ll::{LowLevelGpio, PinId},
+    ll::{DynPinId, LowLevelGpio},
 };
 
 cfg_if::cfg_if! {
@@ -146,7 +146,7 @@ fn on_interrupt_for_port(
 /// which also implements the [embedded_hal_async::digital::Wait] trait. However, access to this
 /// struture is granted  to allow writing custom async structures.
 pub struct InputPinFuture {
-    id: PinId,
+    id: DynPinId,
     waker_group: &'static [AtomicWaker],
     edge_detection_group: &'static [AtomicBool],
 }

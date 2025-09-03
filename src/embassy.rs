@@ -3,7 +3,7 @@ use core::cell::{Cell, RefCell};
 use crate::{
     enable_nvic_interrupt,
     timer::{
-        TimId, TimMarker, assert_tim_reset_for_cycles, enable_tim_clk,
+        TimId, TimInstance, assert_tim_reset_for_cycles, enable_tim_clk,
         regs::{EnableControl, MmioTimer},
     },
 };
@@ -59,7 +59,7 @@ pub struct TimerDriver {
 impl TimerDriver {
     #[cfg(feature = "vor1x")]
     #[doc(hidden)]
-    pub fn __init<TimekeeperTim: TimMarker, AlarmTim: TimMarker>(
+    pub fn __init<TimekeeperTim: TimInstance, AlarmTim: TimInstance>(
         &self,
         sysclk: Hertz,
         _timekeeper_tim: TimekeeperTim,
@@ -117,7 +117,7 @@ impl TimerDriver {
 
     #[cfg(feature = "vor4x")]
     #[doc(hidden)]
-    pub fn __init<TimekeeperTim: TimMarker, AlarmTim: TimMarker>(
+    pub fn __init<TimekeeperTim: TimInstance, AlarmTim: TimInstance>(
         &self,
         _timekeeper_tim: TimekeeperTim,
         _alarm_tim: AlarmTim,

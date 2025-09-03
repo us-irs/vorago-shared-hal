@@ -9,7 +9,7 @@ use crate::sysconfig::enable_peripheral_clock;
 pub use regs::{CascadeSource, InvalidTimerIndex, TimId};
 
 use crate::{enable_nvic_interrupt, sealed::Sealed, time::Hertz};
-use crate::{gpio::PinId, ioconfig::regs::FunSel, pins::PinMarker};
+use crate::{gpio::DynPinId, ioconfig::regs::FunctionSelect, pins::AnyPin};
 use fugit::RateExtU32;
 
 #[cfg(feature = "vor1x")]
@@ -69,13 +69,13 @@ pub enum CascadeSelect {
 // Valid TIM and PIN combinations
 //==================================================================================================
 
-pub trait TimPin: PinMarker {
-    const PIN_ID: PinId;
-    const FUN_SEL: FunSel;
+pub trait TimPin: AnyPin {
+    const PIN_ID: DynPinId;
+    const FUN_SEL: FunctionSelect;
     const TIM_ID: TimId;
 }
 
-pub trait TimMarker: Sealed {
+pub trait TimInstance: Sealed {
     // TIM ID ranging from 0 to 23 for 24 TIM peripherals
     const ID: TimId;
     #[cfg(feature = "vor4x")]
@@ -93,14 +93,14 @@ pub trait TimMarker: Sealed {
 
 macro_rules! tim_marker {
     ($TIMX:path, $ID:expr) => {
-        impl TimMarker for $TIMX {
+        impl TimInstance for $TIMX {
             const ID: TimId = TimId::new_unchecked($ID);
         }
 
         impl Sealed for $TIMX {}
     };
     ($TIMX:path, $ID:expr, $IrqId:ident) => {
-        impl TimMarker for $TIMX {
+        impl TimInstance for $TIMX {
             const ID: TimId = TimId::new_unchecked($ID);
             const IRQ: va416xx::Interrupt = va416xx::Interrupt::$IrqId;
         }
@@ -163,7 +163,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub trait ValidTimAndPin<Pin: TimPin, Tim: TimMarker>: Sealed {}
+pub trait ValidTimAndPin<Pin: TimPin, Tim: TimInstance>: Sealed {}
 
 #[macro_use]
 mod macros {
@@ -171,10 +171,10 @@ mod macros {
         ($Px:ident, $FunSel:path, $ID:expr) => {
             impl TimPin for Pin<$Px>
             where
-                $Px: PinIdProvider,
+                $Px: PinId,
             {
-                const PIN_ID: PinId = $Px::ID;
-                const FUN_SEL: FunSel = $FunSel;
+                const PIN_ID: DynPinId = $Px::ID;
+                const FUN_SEL: FunctionSelect = $FunSel;
                 const TIM_ID: TimId = TimId::new_unchecked($ID);
             }
         };
@@ -207,7 +207,7 @@ impl CountdownTimer {
     /// [Self::enable_interrupt] and [Self::enable] API to set up and configure the countdown
     /// timer.
     #[cfg(feature = "vor1x")]
-    pub fn new<Tim: TimMarker>(_tim: Tim, sys_clk: Hertz) -> Self {
+    pub fn new<Tim: TimInstance>(_tim: Tim, sys_clk: Hertz) -> Self {
         enable_tim_clk(Tim::ID);
         assert_tim_reset_for_cycles(Tim::ID, 2);
         CountdownTimer {
@@ -226,7 +226,7 @@ impl CountdownTimer {
     /// [Self::enable_interrupt] and [Self::enable] API to set up and configure the countdown
     /// timer.
     #[cfg(feature = "vor4x")]
-    pub fn new<Tim: TimMarker>(_tim: Tim, clks: &crate::clock::Clocks) -> Self {
+    pub fn new<Tim: TimInstance>(_tim: Tim, clks: &crate::clock::Clocks) -> Self {
         enable_tim_clk(Tim::ID);
         assert_tim_reset_for_cycles(Tim::ID, 2);
         CountdownTimer {

@@ -7,7 +7,7 @@ use crate::{
 use arbitrary_int::{u4, u10, u11, u20};
 use core::marker::PhantomData;
 use embedded_hal::i2c::{self, Operation, SevenBitAddress, TenBitAddress};
-use regs::ClkTimeoutLimit;
+use regs::ClockTimeoutLimit;
 pub use regs::{Bank, I2cSpeed, RxFifoFullMode, TxFifoEmptyMode};
 
 #[cfg(feature = "vor1x")]
@@ -60,7 +60,7 @@ pub enum InitError {
     WrongAddrMode,
     /// APB1 clock is too slow for fast I2C mode.
     #[error("clock too slow for fast I2C mode: {0}")]
-    ClkTooSlow(#[from] ClockTooSlowForFastI2cError),
+    ClockTooSlow(#[from] ClockTooSlowForFastI2cError),
 }
 
 impl embedded_hal::i2c::Error for Error {
@@ -82,7 +82,7 @@ impl embedded_hal::i2c::Error for Error {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum I2cCmd {
+pub enum I2cCommand {
     Start = 0b01,
     Stop = 0b10,
     StartWithStop = 0b11,
@@ -113,7 +113,7 @@ impl I2cAddress {
 
 /// Common trait implemented by all PAC peripheral access structures. The register block
 /// format is the same for all SPI blocks.
-pub trait I2cMarker: Sealed {
+pub trait I2cInstance: Sealed {
     const ID: Bank;
     const PERIPH_SEL: PeripheralSelect;
 }
@@ -123,7 +123,7 @@ pub type I2c0 = pac::I2ca;
 #[cfg(feature = "vor4x")]
 pub type I2c0 = pac::I2c0;
 
-impl I2cMarker for I2c0 {
+impl I2cInstance for I2c0 {
     const ID: Bank = Bank::I2c0;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::I2c0;
 }
@@ -134,7 +134,7 @@ pub type I2c1 = pac::I2cb;
 #[cfg(feature = "vor4x")]
 pub type I2c1 = pac::I2c1;
 
-impl I2cMarker for I2c1 {
+impl I2cInstance for I2c1 {
     const ID: Bank = Bank::I2c1;
     const PERIPH_SEL: PeripheralSelect = PeripheralSelect::I2c1;
 }
@@ -291,7 +291,7 @@ pub struct I2cMaster<Addr = SevenBitAddress> {
 }
 
 impl<Addr> I2cMaster<Addr> {
-    pub fn new<I2c: I2cMarker>(
+    pub fn new<I2c: I2cInstance>(
         _i2c: I2c,
         #[cfg(feature = "vor1x")] sysclk: Hertz,
         #[cfg(feature = "vor4x")] clks: &crate::clock::Clocks,
@@ -306,7 +306,7 @@ impl<Addr> I2cMaster<Addr> {
         #[cfg(feature = "vor4x")]
         let clk_div = calc_clk_div(clks, speed_mode)?;
         regs.write_clkscale(
-            regs::ClkScale::builder()
+            regs::ClockScale::builder()
                 .with_div(clk_div)
                 .with_fastmode(speed_mode)
                 .build(),
@@ -344,7 +344,7 @@ impl<Addr> I2cMaster<Addr> {
                 .build(),
         );
         if let Some(timeout) = cfg.timeout {
-            regs.write_clk_timeout_limit(ClkTimeoutLimit::new(timeout));
+            regs.write_clk_timeout_limit(ClockTimeoutLimit::new(timeout));
         }
         let mut i2c_master = I2cMaster {
             addr: PhantomData,
@@ -377,7 +377,7 @@ impl<Addr> I2cMaster<Addr> {
         #[cfg(feature = "vor4x")]
         let clk_div = calc_clk_div(clks, speed_mode)?;
         self.regs.write_clkscale(
-            regs::ClkScale::builder()
+            regs::ClockScale::builder()
                 .with_div(clk_div)
                 .with_fastmode(speed_mode)
                 .build(),
@@ -426,13 +426,13 @@ impl<Addr> I2cMaster<Addr> {
     #[inline]
     pub fn set_clock_low_timeout(&mut self, clock_cycles: u20) {
         self.regs
-            .write_clk_timeout_limit(ClkTimeoutLimit::new(clock_cycles));
+            .write_clk_timeout_limit(ClockTimeoutLimit::new(clock_cycles));
     }
 
     #[inline]
     pub fn disable_clock_low_timeout(&mut self) {
         self.regs
-            .write_clk_timeout_limit(ClkTimeoutLimit::new(u20::new(0)));
+            .write_clk_timeout_limit(ClockTimeoutLimit::new(u20::new(0)));
     }
 
     #[inline]
@@ -467,7 +467,7 @@ impl<Addr> I2cMaster<Addr> {
     }
 
     #[inline]
-    pub fn write_command(&mut self, cmd: I2cCmd) {
+    pub fn write_command(&mut self, cmd: I2cCommand) {
         self.regs
             .write_cmd(regs::Command::new_with_raw_value(cmd as u32));
     }
@@ -483,9 +483,9 @@ impl<Addr> I2cMaster<Addr> {
         );
     }
 
-    fn error_handler_write(&mut self, init_cmd: I2cCmd) {
-        if init_cmd == I2cCmd::Start {
-            self.write_command(I2cCmd::Stop);
+    fn error_handler_write(&mut self, init_cmd: I2cCommand) {
+        if init_cmd == I2cCommand::Start {
+            self.write_command(I2cCommand::Stop);
         }
         // The other case is start with stop where, so a CANCEL command should not be necessary
         // because the hardware takes care of it.
@@ -495,7 +495,7 @@ impl<Addr> I2cMaster<Addr> {
     /// Blocking write transaction on the I2C bus.
     pub fn write_blocking(&mut self, addr: I2cAddress, output: &[u8]) -> Result<(), Error> {
         self.write_blocking_generic(
-            I2cCmd::StartWithStop,
+            I2cCommand::StartWithStop,
             addr,
             output,
             WriteCompletionCondition::Idle,
@@ -522,7 +522,7 @@ impl<Addr> I2cMaster<Addr> {
         let mut buf_iter = buffer.iter_mut();
         let mut read_bytes = 0;
         // Start receive transfer
-        self.write_command(I2cCmd::StartWithStop);
+        self.write_command(I2cCommand::StartWithStop);
         loop {
             let status = self.read_status();
             if status.arb_lost() {
@@ -555,7 +555,7 @@ impl<Addr> I2cMaster<Addr> {
 
     fn write_blocking_generic(
         &mut self,
-        init_cmd: I2cCmd,
+        init_cmd: I2cCommand,
         addr: I2cAddress,
         output: &[u8],
         end_condition: WriteCompletionCondition,
@@ -631,7 +631,7 @@ impl<Addr> I2cMaster<Addr> {
         read: &mut [u8],
     ) -> Result<(), Error> {
         self.write_blocking_generic(
-            I2cCmd::Start,
+            I2cCommand::Start,
             address,
             write,
             WriteCompletionCondition::Waiting,

@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::{NUM_PORT_A, NUM_PORT_B, gpio::PinId};
+use crate::{NUM_PORT_A, NUM_PORT_B, gpio::DynPinId};
 #[cfg(feature = "vor4x")]
 use crate::{NUM_PORT_DEFAULT, NUM_PORT_G};
 
@@ -24,7 +24,7 @@ pub enum FilterType {
 #[derive(Debug, PartialEq, Eq)]
 #[bitbybit::bitenum(u3, exhaustive = true)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum FilterClkSel {
+pub enum FilterClockSelect {
     SysClk = 0,
     Clk1 = 1,
     Clk2 = 2,
@@ -46,7 +46,7 @@ pub enum Pull {
 #[derive(Debug, Eq, PartialEq)]
 #[bitbybit::bitenum(u2, exhaustive = true)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum FunSel {
+pub enum FunctionSelect {
     Sel0 = 0b00,
     Sel1 = 0b01,
     Sel2 = 0b10,
@@ -58,7 +58,7 @@ pub struct Config {
     #[bit(16, rw)]
     io_disable: bool,
     #[bits(13..=14, rw)]
-    funsel: FunSel,
+    funsel: FunctionSelect,
     #[bit(12, rw)]
     pull_when_output_active: bool,
     #[bit(11, rw)]
@@ -75,7 +75,7 @@ pub struct Config {
     #[bit(6, rw)]
     invert_input: bool,
     #[bits(3..=5, rw)]
-    filter_clk_sel: FilterClkSel,
+    filter_clk_sel: FilterClockSelect,
     #[bits(0..=2, rw)]
     filter_type: Option<FilterType>,
 }
@@ -136,7 +136,7 @@ impl IoConfig {
 }
 
 impl MmioIoConfig<'_> {
-    pub fn read_pin_config(&self, id: PinId) -> Config {
+    pub fn read_pin_config(&self, id: DynPinId) -> Config {
         let offset = id.offset();
         match id.port() {
             crate::Port::A => unsafe { self.read_port_a_unchecked(offset) },
@@ -154,12 +154,12 @@ impl MmioIoConfig<'_> {
         }
     }
 
-    pub fn modify_pin_config<F: FnOnce(Config) -> Config>(&mut self, id: PinId, f: F) {
+    pub fn modify_pin_config<F: FnOnce(Config) -> Config>(&mut self, id: DynPinId, f: F) {
         let config = self.read_pin_config(id);
         self.write_pin_config(id, f(config))
     }
 
-    pub fn write_pin_config(&mut self, id: PinId, config: Config) {
+    pub fn write_pin_config(&mut self, id: DynPinId, config: Config) {
         let offset = id.offset();
         match id.port() {
             crate::Port::A => unsafe { self.write_port_a_unchecked(offset, config) },
